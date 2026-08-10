@@ -1,0 +1,166 @@
+:root {
+  --bg-blue: #1565c0;
+  --bg-blue-dark: #0d47a1;
+  --ink: #ffffff;
+  --ink-dim: rgba(255, 255, 255, 0.55);
+  --button-color: #2ecc71;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-blue);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.app {
+  height: 100dvh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, var(--bg-blue-dark) 0%, var(--bg-blue) 100%);
+}
+
+/* ---------- Top third: big time display ---------- */
+.display {
+  flex: 1 1 33.33%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: env(safe-area-inset-top) 1rem 0 1rem;
+}
+
+.time {
+  font-size: min(24vw, 22vh);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------- Middle third: giant button ---------- */
+.button-zone {
+  flex: 1 1 33.33%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0 1.5rem;
+}
+
+.rest-button {
+  width: min(46vh, 78vw);
+  height: min(46vh, 78vw);
+  border-radius: 50%;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  background: var(--button-color);
+  box-shadow:
+    0 12px 0 rgba(0, 0, 0, 0.18),
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    inset 0 6px 18px rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: min(7vh, 11vw);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.rest-button:active {
+  transform: translateY(6px);
+  box-shadow:
+    0 6px 0 rgba(0, 0, 0, 0.18),
+    0 10px 24px rgba(0, 0, 0, 0.35),
+    inset 0 6px 18px rgba(255, 255, 255, 0.25);
+}
+
+/* ---------- Bottom third: duration wheel ---------- */
+.controls {
+  flex: 1 1 33.33%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  gap: 0.4rem;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.controls-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+
+.wheel-wrap {
+  position: relative;
+  width: min(220px, 60vw);
+  height: 132px;
+}
+
+.wheel-highlight {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 44px;
+  transform: translateY(-50%);
+  border-top: 2px solid rgba(255, 255, 255, 0.55);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+.wheel {
+  height: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 44px 0;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+}
+
+.wheel::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel-item {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+  opacity: 0.4;
+  transform: scale(0.8);
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+
+.wheel-item.selected {
+  color: var(--ink);
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.controls.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
