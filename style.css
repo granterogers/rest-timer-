@@ -1,13 +1,13 @@
 :root {
-  --btn-color: #2ecc71;
   --ink: #ffffff;
-  --ink-dim: rgba(255, 255, 255, 0.6);
+  --ink-dim: rgba(255, 255, 255, 0.65);
 }
 
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  touch-action: manipulation;
 }
 
 html, body {
@@ -16,6 +16,7 @@ html, body {
   height: 100%;
   overflow: hidden;
   color: var(--ink);
+  background: #0d47a1;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -25,22 +26,10 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.14), transparent 42%),
-    radial-gradient(circle at 82% 88%, rgba(0, 0, 0, 0.18), transparent 55%),
-    linear-gradient(160deg, #0a3a8c 0%, #1565c0 48%, #1e88e5 100%);
-}
-
-/* subtle grain texture overlay for a less flat, more crafted background */
-.app::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  background-size: 220px 220px;
+  background-image: url("assets/background-blue.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* ---------- Top third: big time display ---------- */
@@ -78,59 +67,47 @@ html, body {
   position: relative;
   width: min(46vh, 78vw);
   height: min(46vh, 78vw);
-  border-radius: 50%;
   border: none;
   outline: none;
+  background: transparent;
   cursor: pointer;
   padding: 0;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 32% 26%,
-      color-mix(in srgb, var(--btn-color) 45%, white) 0%,
-      var(--btn-color) 42%,
-      color-mix(in srgb, var(--btn-color) 78%, black) 100%);
-  box-shadow:
-    0 3px 0 color-mix(in srgb, var(--btn-color) 55%, black),
-    0 14px 0 rgba(0, 0, 0, 0.22),
-    0 22px 46px rgba(0, 0, 0, 0.4),
-    inset 0 -10px 24px rgba(0, 0, 0, 0.2),
-    inset 0 10px 18px rgba(255, 255, 255, 0.3);
-  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s linear;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s ease;
 }
 
-.rest-button-sheen {
+.rest-button-img {
   position: absolute;
-  top: 8%;
-  left: 16%;
-  width: 55%;
-  height: 34%;
-  border-radius: 50%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
-  filter: blur(1px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   pointer-events: none;
+  filter: hue-rotate(0deg);
+  transition: filter 0.1s ease-out;
+}
+
+.rest-button.is-running .rest-button-img {
+  filter: hue-rotate(-140deg);
 }
 
 .rest-button-label {
   position: relative;
   display: block;
   color: #ffffff;
-  font-size: min(7vh, 11vw);
+  font-size: min(5.2vh, 8vw);
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .rest-button:active {
-  transform: translateY(10px);
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--btn-color) 55%, black),
-    0 4px 0 rgba(0, 0, 0, 0.22),
-    0 10px 26px rgba(0, 0, 0, 0.4),
-    inset 0 -10px 24px rgba(0, 0, 0, 0.25),
-    inset 0 10px 18px rgba(255, 255, 255, 0.25);
+  transform: scale(0.96) translateY(4px);
 }
 
-/* ---------- Bottom third: compact rest-duration stepper ---------- */
+/* ---------- Bottom third: rest-duration stepper ---------- */
 .controls {
   flex: 1 1 33.33%;
   display: flex;
@@ -143,15 +120,18 @@ html, body {
 .stepper-row {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.5rem 1rem;
+  gap: 1.1rem;
+  padding: 0.6rem 1.2rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.15), 0 2px 10px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 14px rgba(0, 0, 0, 0.2);
 }
 
 .stepper-label {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -159,32 +139,37 @@ html, body {
 }
 
 .step-btn {
-  width: 34px;
-  height: 34px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.16);
-  color: var(--ink);
-  font-size: 1.3rem;
+  background: linear-gradient(160deg, #4fa3f7 0%, #1f6fd6 55%, #145bb8 100%);
+  color: #ffffff;
+  font-size: 1.7rem;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.08s ease, background 0.12s ease;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 255, 255, 0.45),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.25),
+    0 3px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
 }
 
 .step-btn:active {
-  transform: scale(0.9);
-  background: rgba(255, 255, 255, 0.28);
+  transform: scale(0.92);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.3),
+    0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .duration-value {
-  min-width: 4.2ch;
+  min-width: 4.4ch;
   text-align: center;
-  font-size: 1.15rem;
+  font-size: 1.35rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

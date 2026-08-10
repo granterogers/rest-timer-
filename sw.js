@@ -1,4 +1,4 @@
-const CACHE_NAME = "rest-timer-v2";
+const CACHE_NAME = "rest-timer-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,7 +7,9 @@ const ASSETS = [
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./assets/button-green.png",
+  "./assets/background-blue.png"
 ];
 
 self.addEventListener("install", (event) => {
