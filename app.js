@@ -294,4 +294,32 @@
       navigator.serviceWorker.register("sw.js").catch(function () {});
     });
   }
+
+  // ---------- Force a refresh when a newer deploy is detected ----------
+  // On iOS, opening a home-screen app often resumes a WKWebView that was
+  // frozen in the background rather than actually reloading the page, so
+  // the network-first service worker above never gets a chance to run.
+  // Whenever the app becomes visible again, compare against a version
+  // marker (rewritten on every deploy) and force a real reload if it
+  // changed - that's the only thing that reliably picks up new code.
+  var appVersion = null;
+
+  function checkForNewVersion() {
+    fetch("version.json", { cache: "no-store" })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (appVersion === null) {
+          appVersion = data.version;
+        } else if (data.version !== appVersion) {
+          window.location.reload();
+        }
+      })
+      .catch(function () { /* offline, or version.json missing - ignore */ });
+  }
+
+  checkForNewVersion();
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") checkForNewVersion();
+  });
+  window.addEventListener("pageshow", checkForNewVersion);
 })();
