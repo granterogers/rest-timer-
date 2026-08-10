@@ -1,17 +1,15 @@
 (function () {
   "use strict";
 
-  // ---------- Duration wheel setup ----------
+  // ---------- Rest duration stepper ----------
   var MIN_SECONDS = 15;
   var MAX_SECONDS = 5 * 60;
   var STEP_SECONDS = 15;
   var DEFAULT_SECONDS = 120;
 
-  var durations = [];
-  for (var s = MIN_SECONDS; s <= MAX_SECONDS; s += STEP_SECONDS) durations.push(s);
-  var defaultIndex = durations.indexOf(DEFAULT_SECONDS);
-
-  var wheelEl = document.getElementById("wheel");
+  var durationValueEl = document.getElementById("durationValue");
+  var decBtn = document.getElementById("decBtn");
+  var incBtn = document.getElementById("incBtn");
   var controlsEl = document.querySelector(".controls");
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
@@ -23,43 +21,23 @@
     return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
   }
 
-  durations.forEach(function (secs) {
-    var item = document.createElement("div");
-    item.className = "wheel-item";
-    item.textContent = formatTime(secs);
-    item.dataset.seconds = secs;
-    wheelEl.appendChild(item);
-  });
-
   var selectedSeconds = DEFAULT_SECONDS;
-  var itemHeight = 44;
 
-  function highlightCentered() {
-    var index = Math.round(wheelEl.scrollTop / itemHeight);
-    index = Math.max(0, Math.min(durations.length - 1, index));
-    var items = wheelEl.querySelectorAll(".wheel-item");
-    items.forEach(function (el, i) {
-      el.classList.toggle("selected", i === index);
-    });
-    selectedSeconds = durations[index];
-    if (!isRunning) timeLabel.textContent = formatTime(selectedSeconds);
+  function renderDuration() {
+    var text = formatTime(selectedSeconds);
+    durationValueEl.textContent = text;
+    if (!isRunning) timeLabel.textContent = text;
   }
 
-  var scrollTimeout = null;
-  wheelEl.addEventListener("scroll", function () {
-    highlightCentered();
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(function () {
-      var index = durations.indexOf(selectedSeconds);
-      wheelEl.scrollTo({ top: index * itemHeight, behavior: "smooth" });
-    }, 120);
-  });
+  function adjustDuration(deltaSeconds) {
+    selectedSeconds = Math.max(MIN_SECONDS, Math.min(MAX_SECONDS, selectedSeconds + deltaSeconds));
+    renderDuration();
+  }
 
-  // Set initial scroll position to the default duration.
-  wheelEl.scrollTop = defaultIndex * itemHeight;
-  highlightCentered();
+  decBtn.addEventListener("click", function () { adjustDuration(-STEP_SECONDS); });
+  incBtn.addEventListener("click", function () { adjustDuration(STEP_SECONDS); });
 
-  // ---------- Bell sound (synthesized, no external assets) ----------
+  // ---------- Bell sound: a boxing-round ringside bell ----------
   var audioCtx = null;
 
   function ensureAudio() {
@@ -70,30 +48,58 @@
     if (audioCtx.state === "suspended") audioCtx.resume();
   }
 
-  function ringBell(startTime) {
-    var freqs = [880, 1320, 1760];
-    freqs.forEach(function (freq, i) {
+  // Inharmonic partial ratios give the metallic, non-musical timbre of a
+  // struck bell (as opposed to stacking pure harmonics, which sounds like
+  // an organ note).
+  var BELL_PARTIALS = [1, 1.79, 2.76, 3.98, 5.1];
+  var BELL_FUNDAMENTAL = 1500;
+
+  function strikeBell(startTime, volume) {
+    BELL_PARTIALS.forEach(function (ratio, i) {
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
       osc.type = "sine";
-      osc.frequency.value = freq;
-      var peak = 0.35 / (i + 1);
+      osc.frequency.value = BELL_FUNDAMENTAL * ratio;
+      var peak = volume / (i + 1.3);
       gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.4);
+      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.55);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start(startTime);
-      osc.stop(startTime + 1.5);
+      osc.stop(startTime + 0.6);
     });
+
+    // Short filtered noise burst for the metallic "clang" of the strike itself.
+    var duration = 0.06;
+    var bufferSize = Math.floor(audioCtx.sampleRate * duration);
+    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    var noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    var bandpass = audioCtx.createBiquadFilter();
+    bandpass.type = "bandpass";
+    bandpass.frequency.value = 3200;
+    bandpass.Q.value = 0.6;
+    var noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(volume * 0.6, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    noise.start(startTime);
   }
 
   function playBell() {
     ensureAudio();
     var now = audioCtx.currentTime;
-    ringBell(now);
-    ringBell(now + 0.5);
-    ringBell(now + 1.0);
+    // A ringside bell is struck in a quick triple-tap at the start of a round.
+    [0, 0.16, 0.32].forEach(function (offset) {
+      strikeBell(now + offset, 0.55);
+    });
   }
 
   // ---------- Countdown state machine ----------
@@ -113,7 +119,7 @@
   }
 
   function setButtonProgress(fraction) {
-    restButton.style.background = lerpColor(GREEN, RED, fraction);
+    restButton.style.setProperty("--btn-color", lerpColor(GREEN, RED, fraction));
   }
 
   function tick() {
@@ -136,7 +142,7 @@
     isRunning = true;
     totalDuration = selectedSeconds;
     endTime = Date.now() + totalDuration * 1000;
-    buttonLabel.textContent = "STOP";
+    buttonLabel.textContent = "";
     controlsEl.classList.add("disabled");
     rafId = requestAnimationFrame(tick);
   }
@@ -171,7 +177,7 @@
   });
 
   // Initial paint.
-  timeLabel.textContent = formatTime(selectedSeconds);
+  renderDuration();
   setButtonProgress(0);
 
   // ---------- PWA service worker ----------

@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rest Timer">
-<meta name="theme-color" content="#1565c0">
+<meta name="theme-color" content="#0d47a1">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/favicon-32.png">
 <link rel="manifest" href="manifest.json">
@@ -26,15 +26,17 @@
 
   <main class="button-zone">
     <button class="rest-button" id="restButton" aria-label="Start rest timer">
-      <span id="buttonLabel">START</span>
+      <span class="rest-button-sheen"></span>
+      <span class="rest-button-label" id="buttonLabel">START</span>
     </button>
   </main>
 
   <footer class="controls">
-    <div class="controls-title">Rest Duration</div>
-    <div class="wheel-wrap">
-      <div class="wheel-highlight"></div>
-      <div class="wheel" id="wheel"></div>
+    <div class="stepper-row">
+      <span class="stepper-label">Rest</span>
+      <button class="step-btn" id="decBtn" aria-label="Decrease rest duration">&minus;</button>
+      <span class="duration-value" id="durationValue">02:00</span>
+      <button class="step-btn" id="incBtn" aria-label="Increase rest duration">+</button>
     </div>
   </footer>
 
