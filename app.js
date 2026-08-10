@@ -41,6 +41,13 @@
   var audioCtx = null;
 
   function ensureAudio() {
+    // Safari (17+) defaults Web Audio to the "ambient" audio session
+    // category, which the hardware mute switch silences. Declaring
+    // "playback" makes it behave like a music/media app and ignore the
+    // mute switch. No-op on browsers that don't support this API.
+    if ("audioSession" in navigator) {
+      try { navigator.audioSession.type = "playback"; } catch (e) { /* ignore */ }
+    }
     if (!audioCtx) {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       audioCtx = new Ctx();
