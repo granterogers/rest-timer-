@@ -39,6 +39,24 @@
 
   // ---------- Sound: a pleasant chime to begin, a boxing-style bell to end ----------
   var audioCtx = null;
+  var masterGain = null; // 2x makeup gain (the requested "+100% volume")
+  var limiter = null; // brick-wall-ish compressor so the extra gain can't clip/distort
+  var dryBus = null; // everything feeds this, which feeds the limiter
+  var reverbSend = null; // parallel wet path for a touch of natural space
+  var reverbNode = null;
+
+  function buildImpulseResponse(duration, decay) {
+    var rate = audioCtx.sampleRate;
+    var length = Math.floor(rate * duration);
+    var impulse = audioCtx.createBuffer(2, length, rate);
+    for (var ch = 0; ch < 2; ch++) {
+      var data = impulse.getChannelData(ch);
+      for (var i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+      }
+    }
+    return impulse;
+  }
 
   function ensureAudio() {
     // Safari (17+) defaults Web Audio to the "ambient" audio session
@@ -51,11 +69,39 @@
     if (!audioCtx) {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       audioCtx = new Ctx();
+
+      limiter = audioCtx.createDynamicsCompressor();
+      limiter.threshold.value = -6;
+      limiter.knee.value = 6;
+      limiter.ratio.value = 16;
+      limiter.attack.value = 0.002;
+      limiter.release.value = 0.2;
+      limiter.connect(audioCtx.destination);
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 2.0; // +100% volume, safe because of the limiter above
+      masterGain.connect(limiter);
+
+      dryBus = audioCtx.createGain();
+      dryBus.gain.value = 1.0;
+      dryBus.connect(masterGain);
+
+      reverbSend = audioCtx.createGain();
+      reverbSend.gain.value = 0.32;
+      reverbNode = audioCtx.createConvolver();
+      reverbNode.buffer = buildImpulseResponse(1.8, 2.4);
+      reverbSend.connect(reverbNode);
+      reverbNode.connect(masterGain);
     }
     if (audioCtx.state === "suspended") {
       return audioCtx.resume();
     }
     return Promise.resolve();
+  }
+
+  function connectVoice(node) {
+    node.connect(dryBus);
+    node.connect(reverbSend);
   }
 
   function noiseBurst(startTime, duration, peak, filterType, filterFreq) {
@@ -75,8 +121,27 @@
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(audioCtx.destination);
+    connectVoice(gain);
     noise.start(startTime);
+  }
+
+  // Two slightly-detuned oscillators per partial (a few cents apart) beat
+  // gently against each other, the way real struck metal has a natural
+  // shimmer instead of the dead-flat tone of a single pure sine wave.
+  function chorusedTone(startTime, freq, peak, attack, decay, stopAt) {
+    [-3, 3].forEach(function (cents) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq * Math.pow(2, cents / 1200);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(peak * 0.5, startTime + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + decay);
+      osc.connect(gain);
+      connectVoice(gain);
+      osc.start(startTime);
+      osc.stop(startTime + stopAt);
+    });
   }
 
   // Gently detuned overtones read as a soft, pleasant handbell.
@@ -86,20 +151,10 @@
   function playChime() {
     var startTime = audioCtx.currentTime;
     CHIME_PARTIALS.forEach(function (ratio, i) {
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = CHIME_FUNDAMENTAL * ratio;
-      var peak = 0.32 / (i + 1);
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.4);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(startTime);
-      osc.stop(startTime + 1.5);
+      var peak = 0.34 / (i + 1);
+      chorusedTone(startTime, CHIME_FUNDAMENTAL * ratio, peak, 0.02, 1.7, 1.8);
     });
-    noiseBurst(startTime, 0.03, 0.12, "lowpass", 2200);
+    noiseBurst(startTime, 0.03, 0.1, "lowpass", 2200);
   }
 
   // Inharmonic partial ratios give the metallic, non-musical timbre of a
@@ -110,19 +165,23 @@
 
   function strikeGong(startTime, volume) {
     GONG_PARTIALS.forEach(function (ratio, i) {
-      var osc = audioCtx.createOscillator();
-      var gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = GONG_FUNDAMENTAL * ratio;
       var peak = volume / (i + 1.3);
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.55);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(startTime);
-      osc.stop(startTime + 0.6);
+      chorusedTone(startTime, GONG_FUNDAMENTAL * ratio, peak, 0.004, 0.6, 0.65);
     });
+    // Low sub "thud" under the metallic clang for weight/impact.
+    var thud = audioCtx.createOscillator();
+    var thudGain = audioCtx.createGain();
+    thud.type = "sine";
+    thud.frequency.setValueAtTime(160, startTime);
+    thud.frequency.exponentialRampToValueAtTime(70, startTime + 0.12);
+    thudGain.gain.setValueAtTime(0.0001, startTime);
+    thudGain.gain.exponentialRampToValueAtTime(volume * 0.8, startTime + 0.006);
+    thudGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
+    thud.connect(thudGain);
+    connectVoice(thudGain);
+    thud.start(startTime);
+    thud.stop(startTime + 0.25);
+
     noiseBurst(startTime, 0.06, volume * 0.6, "bandpass", 3200);
   }
 
