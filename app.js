@@ -7,13 +7,15 @@
   var STEP_SECONDS = 15;
   var DEFAULT_SECONDS = 120;
 
-  var durationValueEl = document.getElementById("durationValue");
   var decBtn = document.getElementById("decBtn");
   var incBtn = document.getElementById("incBtn");
   var controlsEl = document.querySelector(".controls");
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
   var buttonLabel = document.getElementById("buttonLabel");
+
+  var IDLE_LABEL_HTML =
+    '<span class="label-line">BEGIN</span><span class="label-line">REST</span>';
 
   function formatTime(totalSeconds) {
     var m = Math.floor(totalSeconds / 60);
@@ -24,9 +26,7 @@
   var selectedSeconds = DEFAULT_SECONDS;
 
   function renderDuration() {
-    var text = formatTime(selectedSeconds);
-    durationValueEl.textContent = text;
-    if (!isRunning) timeLabel.textContent = text;
+    if (!isRunning) timeLabel.textContent = formatTime(selectedSeconds);
   }
 
   function adjustDuration(deltaSeconds) {
@@ -37,7 +37,7 @@
   decBtn.addEventListener("click", function () { adjustDuration(-STEP_SECONDS); });
   incBtn.addEventListener("click", function () { adjustDuration(STEP_SECONDS); });
 
-  // ---------- Bell sound: a single, warm, pleasant chime ----------
+  // ---------- Sound: a pleasant chime to begin, a boxing-style bell to end ----------
   var audioCtx = null;
 
   function ensureAudio() {
@@ -45,23 +45,44 @@
       var Ctx = window.AudioContext || window.webkitAudioContext;
       audioCtx = new Ctx();
     }
-    if (audioCtx.state === "suspended") audioCtx.resume();
+    if (audioCtx.state === "suspended") {
+      return audioCtx.resume();
+    }
+    return Promise.resolve();
   }
 
-  // Gently detuned overtones (rather than a harsh metallic ratio set) read as
-  // a soft, pleasant handbell instead of an alarm.
-  var BELL_PARTIALS = [1, 2.01, 3.00, 4.16];
-  var BELL_FUNDAMENTAL = 660;
+  function noiseBurst(startTime, duration, peak, filterType, filterFreq) {
+    var bufferSize = Math.floor(audioCtx.sampleRate * duration);
+    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+    var noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+    var filter = audioCtx.createBiquadFilter();
+    filter.type = filterType;
+    filter.frequency.value = filterFreq;
+    var gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(peak, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioCtx.destination);
+    noise.start(startTime);
+  }
 
-  function playBell() {
-    ensureAudio();
+  // Gently detuned overtones read as a soft, pleasant handbell.
+  var CHIME_PARTIALS = [1, 2.01, 3.0, 4.16];
+  var CHIME_FUNDAMENTAL = 660;
+
+  function playChime() {
     var startTime = audioCtx.currentTime;
-
-    BELL_PARTIALS.forEach(function (ratio, i) {
+    CHIME_PARTIALS.forEach(function (ratio, i) {
       var osc = audioCtx.createOscillator();
       var gain = audioCtx.createGain();
       osc.type = "sine";
-      osc.frequency.value = BELL_FUNDAMENTAL * ratio;
+      osc.frequency.value = CHIME_FUNDAMENTAL * ratio;
       var peak = 0.32 / (i + 1);
       gain.gain.setValueAtTime(0.0001, startTime);
       gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.015);
@@ -71,27 +92,38 @@
       osc.start(startTime);
       osc.stop(startTime + 1.5);
     });
+    noiseBurst(startTime, 0.03, 0.12, "lowpass", 2200);
+  }
 
-    // A very soft, brief attack "tap" so the tone doesn't start too abruptly.
-    var duration = 0.03;
-    var bufferSize = Math.floor(audioCtx.sampleRate * duration);
-    var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    var data = buffer.getChannelData(0);
-    for (var i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-    }
-    var noise = audioCtx.createBufferSource();
-    noise.buffer = buffer;
-    var lowpass = audioCtx.createBiquadFilter();
-    lowpass.type = "lowpass";
-    lowpass.frequency.value = 2200;
-    var noiseGain = audioCtx.createGain();
-    noiseGain.gain.setValueAtTime(0.12, startTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-    noise.connect(lowpass);
-    lowpass.connect(noiseGain);
-    noiseGain.connect(audioCtx.destination);
-    noise.start(startTime);
+  // Inharmonic partial ratios give the metallic, non-musical timbre of a
+  // struck bell (as opposed to stacking pure harmonics, which sounds like
+  // an organ note) - struck three times fast, like a ringside boxing bell.
+  var GONG_PARTIALS = [1, 1.79, 2.76, 3.98, 5.1];
+  var GONG_FUNDAMENTAL = 1500;
+
+  function strikeGong(startTime, volume) {
+    GONG_PARTIALS.forEach(function (ratio, i) {
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = GONG_FUNDAMENTAL * ratio;
+      var peak = volume / (i + 1.3);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.55);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.6);
+    });
+    noiseBurst(startTime, 0.06, volume * 0.6, "bandpass", 3200);
+  }
+
+  function playBoxingBell() {
+    var now = audioCtx.currentTime;
+    [0, 0.16, 0.32].forEach(function (offset) {
+      strikeGong(now + offset, 0.55);
+    });
   }
 
   // ---------- Countdown state machine ----------
@@ -112,13 +144,12 @@
   }
 
   function startCountdown() {
-    ensureAudio();
     isRunning = true;
     endTime = Date.now() + selectedSeconds * 1000;
-    buttonLabel.textContent = "";
+    buttonLabel.innerHTML = "";
     restButton.classList.add("is-running");
     controlsEl.classList.add("disabled");
-    playBell();
+    ensureAudio().then(playChime);
     rafId = requestAnimationFrame(tick);
   }
 
@@ -126,7 +157,7 @@
     isRunning = false;
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
-    buttonLabel.textContent = "BEGIN REST";
+    buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     controlsEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
@@ -136,10 +167,11 @@
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
     isRunning = false;
-    buttonLabel.textContent = "BEGIN REST";
+    buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     controlsEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
+    ensureAudio().then(playBoxingBell);
   }
 
   restButton.addEventListener("click", function () {
