@@ -9,7 +9,8 @@
 
   var decBtn = document.getElementById("decBtn");
   var incBtn = document.getElementById("incBtn");
-  var controlsEl = document.querySelector(".controls");
+  var stepperRowEl = document.querySelector(".stepper-row");
+  var volumeSlider = document.getElementById("volumeSlider");
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
   var buttonLabel = document.getElementById("buttonLabel");
@@ -37,9 +38,41 @@
   decBtn.addEventListener("click", function () { adjustDuration(-STEP_SECONDS); });
   incBtn.addEventListener("click", function () { adjustDuration(STEP_SECONDS); });
 
+  // ---------- Volume ----------
+  var MAX_GAIN = 2.0; // slider at 100% == the "+100% volume" boost; 0% == muted
+  var VOLUME_STORAGE_KEY = "restTimerVolume";
+
+  function loadStoredVolume() {
+    try {
+      var stored = parseFloat(localStorage.getItem(VOLUME_STORAGE_KEY));
+      if (!isNaN(stored) && stored >= 0 && stored <= 1) return stored;
+    } catch (e) { /* localStorage unavailable */ }
+    return 1;
+  }
+
+  var volumeFraction = loadStoredVolume();
+
+  function applyVolumeToSlider() {
+    var percent = Math.round(volumeFraction * 100);
+    volumeSlider.value = percent;
+    volumeSlider.style.setProperty("--fill", percent + "%");
+  }
+
+  function setVolume(fraction) {
+    volumeFraction = Math.max(0, Math.min(1, fraction));
+    if (masterGain) masterGain.gain.value = volumeFraction * MAX_GAIN;
+    try { localStorage.setItem(VOLUME_STORAGE_KEY, String(volumeFraction)); } catch (e) { /* ignore */ }
+  }
+
+  applyVolumeToSlider();
+  volumeSlider.addEventListener("input", function () {
+    setVolume(volumeSlider.value / 100);
+    applyVolumeToSlider();
+  });
+
   // ---------- Sound: a pleasant chime to begin, a boxing-style bell to end ----------
   var audioCtx = null;
-  var masterGain = null; // 2x makeup gain (the requested "+100% volume")
+  var masterGain = null; // makeup gain, scaled by the volume slider (0 = muted)
   var limiter = null; // brick-wall-ish compressor so the extra gain can't clip/distort
   var dryBus = null; // everything feeds this, which feeds the limiter
   var reverbSend = null; // parallel wet path for a touch of natural space
@@ -79,7 +112,7 @@
       limiter.connect(audioCtx.destination);
 
       masterGain = audioCtx.createGain();
-      masterGain.gain.value = 2.0; // +100% volume, safe because of the limiter above
+      masterGain.gain.value = volumeFraction * MAX_GAIN; // safe to boost because of the limiter above
       masterGain.connect(limiter);
 
       dryBus = audioCtx.createGain();
@@ -214,7 +247,7 @@
     endTime = Date.now() + selectedSeconds * 1000;
     buttonLabel.innerHTML = "";
     restButton.classList.add("is-running");
-    controlsEl.classList.add("disabled");
+    stepperRowEl.classList.add("disabled");
     ensureAudio().then(playChime);
     rafId = requestAnimationFrame(tick);
   }
@@ -225,7 +258,7 @@
     rafId = null;
     buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
-    controlsEl.classList.remove("disabled");
+    stepperRowEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
   }
 
@@ -235,7 +268,7 @@
     isRunning = false;
     buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
-    controlsEl.classList.remove("disabled");
+    stepperRowEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
     ensureAudio().then(playBoxingBell);
   }
