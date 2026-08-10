@@ -92,12 +92,15 @@
   }
 
   function ensureAudio() {
-    // Safari (17+) defaults Web Audio to the "ambient" audio session
-    // category, which the hardware mute switch silences. Declaring
-    // "playback" makes it behave like a music/media app and ignore the
-    // mute switch. No-op on browsers that don't support this API.
+    // "playback" (a music-app-style session) was tried here previously to
+    // dodge the hardware mute switch, but it also interrupts/stops any
+    // other audio playing (Spotify, YouTube, etc.), which is worse.
+    // "ambient" mixes with whatever else is already playing instead of
+    // cutting it off - the tradeoff is that this app's own sounds go
+    // silent if the phone is physically muted, same as any other app's
+    // sound effects. No-op on browsers that don't support this API.
     if ("audioSession" in navigator) {
-      try { navigator.audioSession.type = "playback"; } catch (e) { /* ignore */ }
+      try { navigator.audioSession.type = "ambient"; } catch (e) { /* ignore */ }
     }
     if (!audioCtx) {
       var Ctx = window.AudioContext || window.webkitAudioContext;
