@@ -14,6 +14,7 @@
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
   var buttonLabel = document.getElementById("buttonLabel");
+  var keepAliveAudio = document.getElementById("keepAliveAudio");
 
   var IDLE_LABEL_HTML =
     '<span class="label-line">BEGIN</span><span class="label-line">REST</span>';
@@ -228,10 +229,45 @@
     });
   }
 
+  // ---------- Keep running (and audible) when the app isn't in focus ----------
+  // Two things are needed for a rest to keep counting down - and the finish
+  // bell to actually fire - while the screen is locked or another app is in
+  // front:
+  //  1. requestAnimationFrame is paused whenever the page isn't visible, no
+  //     matter what, so the countdown loop below uses setInterval instead -
+  //     setInterval keeps firing in the background as long as something
+  //     qualifies the page for background audio time, which is...
+  //  2. ...this silent, looping <audio> element. iOS only grants a page
+  //     background execution time while it has an active audio session, so
+  //     playing (inaudible) silence for the duration of the rest is what
+  //     keeps the JS above alive long enough to run the countdown and ring
+  //     the bell when it's done.
+  // This is a mitigation, not a guarantee - iOS can still suspend a
+  // sufficiently long-backgrounded tab/PWA - but it covers ordinary rest
+  // periods reliably.
+  function startKeepAlive() {
+    keepAliveAudio.currentTime = 0;
+    keepAliveAudio.play().catch(function () { /* ignore - not fatal */ });
+    if ("mediaSession" in navigator) {
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: "Resting…", artist: "Rest Timer" });
+        navigator.mediaSession.playbackState = "playing";
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  function stopKeepAlive() {
+    keepAliveAudio.pause();
+    keepAliveAudio.currentTime = 0;
+    if ("mediaSession" in navigator) {
+      try { navigator.mediaSession.playbackState = "none"; } catch (e) { /* ignore */ }
+    }
+  }
+
   // ---------- Countdown state machine ----------
   var isRunning = false;
   var endTime = 0;
-  var rafId = null;
+  var tickIntervalId = null;
 
   function tick() {
     var remainingMs = endTime - Date.now();
@@ -240,9 +276,7 @@
 
     if (remainingMs <= 0) {
       finishCountdown();
-      return;
     }
-    rafId = requestAnimationFrame(tick);
   }
 
   function startCountdown() {
@@ -252,13 +286,16 @@
     restButton.classList.add("is-running");
     stepperRowEl.classList.add("disabled");
     ensureAudio().then(playChime);
-    rafId = requestAnimationFrame(tick);
+    startKeepAlive();
+    tick();
+    tickIntervalId = setInterval(tick, 250);
   }
 
   function resetToIdle() {
     isRunning = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
+    if (tickIntervalId) clearInterval(tickIntervalId);
+    tickIntervalId = null;
+    stopKeepAlive();
     buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     stepperRowEl.classList.remove("disabled");
@@ -266,9 +303,10 @@
   }
 
   function finishCountdown() {
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = null;
+    if (tickIntervalId) clearInterval(tickIntervalId);
+    tickIntervalId = null;
     isRunning = false;
+    stopKeepAlive();
     buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     stepperRowEl.classList.remove("disabled");

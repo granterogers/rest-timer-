@@ -9,7 +9,8 @@ const ASSETS = [
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
   "./assets/button-green.png",
-  "./assets/background-blue.png"
+  "./assets/background-blue.png",
+  "./assets/silence.wav"
 ];
 
 self.addEventListener("install", (event) => {
