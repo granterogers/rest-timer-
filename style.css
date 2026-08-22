@@ -45,7 +45,7 @@ html, body {
 }
 
 .time {
-  font-size: min(24vw, 22vh);
+  font-size: min(28.8vw, 26.4vh);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -66,8 +66,8 @@ html, body {
 
 .rest-button {
   position: relative;
-  width: min(57.5vh, 97.5vw);
-  height: min(57.5vh, 97.5vw);
+  width: min(46vh, 78vw);
+  height: min(46vh, 78vw);
   border: none;
   outline: none;
   background: transparent;
@@ -134,6 +134,7 @@ html, body {
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,6 +143,15 @@ html, body {
     inset 0 -3px 6px rgba(0, 0, 0, 0.25),
     0 3px 8px rgba(0, 0, 0, 0.3);
   transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
 }
 
 .step-btn:active {
