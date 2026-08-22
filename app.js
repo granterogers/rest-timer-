@@ -13,11 +13,7 @@
   var volumeSlider = document.getElementById("volumeSlider");
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
-  var buttonLabel = document.getElementById("buttonLabel");
   var keepAliveAudio = document.getElementById("keepAliveAudio");
-
-  var IDLE_LABEL_HTML =
-    '<span class="label-line">BEGIN</span><span class="label-line">REST</span>';
 
   function formatTime(totalSeconds) {
     var m = Math.floor(totalSeconds / 60);
@@ -282,7 +278,6 @@
   function startCountdown() {
     isRunning = true;
     endTime = Date.now() + selectedSeconds * 1000;
-    buttonLabel.innerHTML = "";
     restButton.classList.add("is-running");
     stepperRowEl.classList.add("disabled");
     ensureAudio().then(playChime);
@@ -296,7 +291,6 @@
     if (tickIntervalId) clearInterval(tickIntervalId);
     tickIntervalId = null;
     stopKeepAlive();
-    buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     stepperRowEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
@@ -307,7 +301,6 @@
     tickIntervalId = null;
     isRunning = false;
     stopKeepAlive();
-    buttonLabel.innerHTML = IDLE_LABEL_HTML;
     restButton.classList.remove("is-running");
     stepperRowEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
