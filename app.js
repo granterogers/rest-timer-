@@ -88,6 +88,34 @@
     return impulse;
   }
 
+  function buildAudioGraph() {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctx();
+
+    limiter = audioCtx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 16;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.2;
+    limiter.connect(audioCtx.destination);
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = volumeFraction * MAX_GAIN; // safe to boost because of the limiter above
+    masterGain.connect(limiter);
+
+    dryBus = audioCtx.createGain();
+    dryBus.gain.value = 1.0;
+    dryBus.connect(masterGain);
+
+    reverbSend = audioCtx.createGain();
+    reverbSend.gain.value = 0.32;
+    reverbNode = audioCtx.createConvolver();
+    reverbNode.buffer = buildImpulseResponse(1.8, 2.4);
+    reverbSend.connect(reverbNode);
+    reverbNode.connect(masterGain);
+  }
+
   function ensureAudio() {
     // "playback" (a music-app-style session) was tried here previously to
     // dodge the hardware mute switch, but it also interrupts/stops any
@@ -99,35 +127,21 @@
     if ("audioSession" in navigator) {
       try { navigator.audioSession.type = "ambient"; } catch (e) { /* ignore */ }
     }
-    if (!audioCtx) {
-      var Ctx = window.AudioContext || window.webkitAudioContext;
-      audioCtx = new Ctx();
-
-      limiter = audioCtx.createDynamicsCompressor();
-      limiter.threshold.value = -6;
-      limiter.knee.value = 6;
-      limiter.ratio.value = 16;
-      limiter.attack.value = 0.002;
-      limiter.release.value = 0.2;
-      limiter.connect(audioCtx.destination);
-
-      masterGain = audioCtx.createGain();
-      masterGain.gain.value = volumeFraction * MAX_GAIN; // safe to boost because of the limiter above
-      masterGain.connect(limiter);
-
-      dryBus = audioCtx.createGain();
-      dryBus.gain.value = 1.0;
-      dryBus.connect(masterGain);
-
-      reverbSend = audioCtx.createGain();
-      reverbSend.gain.value = 0.32;
-      reverbNode = audioCtx.createConvolver();
-      reverbNode.buffer = buildImpulseResponse(1.8, 2.4);
-      reverbSend.connect(reverbNode);
-      reverbNode.connect(masterGain);
+    // A context can be permanently "closed" by the browser after a long
+    // interruption (a phone call, extended backgrounding, etc.) - resume()
+    // can't revive a closed context, so rebuild the whole graph from
+    // scratch when that happens instead of silently failing forever after.
+    if (audioCtx && audioCtx.state === "closed") {
+      audioCtx = null;
     }
-    if (audioCtx.state === "suspended") {
-      return audioCtx.resume();
+    if (!audioCtx) {
+      buildAudioGraph();
+    }
+    // Checking for anything other than "running" (rather than only
+    // "suspended") also catches Safari's non-standard "interrupted" state,
+    // which resume() can otherwise be silently ignored for.
+    if (audioCtx.state !== "running") {
+      return audioCtx.resume().catch(function () { /* best effort */ });
     }
     return Promise.resolve();
   }
