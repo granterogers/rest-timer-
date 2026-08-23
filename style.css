@@ -33,6 +33,19 @@ html, body {
   background-repeat: no-repeat;
 }
 
+.version-tag {
+  position: absolute;
+  right: max(env(safe-area-inset-right), 10px);
+  bottom: max(env(safe-area-inset-bottom), 6px);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.32);
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
 /* ---------- Top third: big time display ---------- */
 .display {
   flex: 1 1 33.33%;

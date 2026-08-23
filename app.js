@@ -14,6 +14,7 @@
   var timeLabel = document.getElementById("timeLabel");
   var restButton = document.getElementById("restButton");
   var keepAliveAudio = document.getElementById("keepAliveAudio");
+  var versionTag = document.getElementById("versionTag");
 
   function formatTime(totalSeconds) {
     var m = Math.floor(totalSeconds / 60);
@@ -362,6 +363,7 @@
       .then(function (data) {
         if (appVersion === null) {
           appVersion = data.version;
+          versionTag.textContent = "v" + String(data.version).slice(0, 7);
         } else if (data.version !== appVersion) {
           window.location.reload();
         }
