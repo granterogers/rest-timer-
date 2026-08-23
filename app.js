@@ -117,15 +117,17 @@
   }
 
   function ensureAudio() {
-    // "playback" (a music-app-style session) was tried here previously to
-    // dodge the hardware mute switch, but it also interrupts/stops any
-    // other audio playing (Spotify, YouTube, etc.), which is worse.
-    // "ambient" mixes with whatever else is already playing instead of
-    // cutting it off - the tradeoff is that this app's own sounds go
-    // silent if the phone is physically muted, same as any other app's
-    // sound effects. No-op on browsers that don't support this API.
+    // "ambient" was tried here to let this app's sounds mix with other
+    // audio (Spotify, YouTube, etc.) instead of interrupting it, but its
+    // tradeoff turned out to be a dealbreaker: "ambient" is silenced
+    // outright by the phone's physical mute switch, so the rest/finish
+    // alerts - the actual point of this app - could go missing entirely.
+    // "playback" (a music-app-style session) ignores the mute switch,
+    // which is the priority; the cost is that it can pause/interrupt
+    // other audio playing at the time. No-op on browsers that don't
+    // support this API.
     if ("audioSession" in navigator) {
-      try { navigator.audioSession.type = "ambient"; } catch (e) { /* ignore */ }
+      try { navigator.audioSession.type = "playback"; } catch (e) { /* ignore */ }
     }
     // A context can be permanently "closed" by the browser after a long
     // interruption (a phone call, extended backgrounding, etc.) - resume()
