@@ -117,17 +117,19 @@
   }
 
   function ensureAudio() {
-    // "ambient" was tried here to let this app's sounds mix with other
-    // audio (Spotify, YouTube, etc.) instead of interrupting it, but its
-    // tradeoff turned out to be a dealbreaker: "ambient" is silenced
-    // outright by the phone's physical mute switch, so the rest/finish
-    // alerts - the actual point of this app - could go missing entirely.
-    // "playback" (a music-app-style session) ignores the mute switch,
-    // which is the priority; the cost is that it can pause/interrupt
-    // other audio playing at the time. No-op on browsers that don't
-    // support this API.
+    // There isn't a way to get both properties at once here: "playback"
+    // ignores the phone's physical mute switch but pauses/interrupts other
+    // audio (Spotify, YouTube, etc.); "ambient" mixes with other audio
+    // instead of interrupting it, but is itself silenced by the mute
+    // switch. The web-exposed audioSession API only offers fixed presets,
+    // not the independent "ignore mute + mix with others" combination
+    // native iOS apps can use - there's no way to combine them from here.
+    // Given the choice, letting background music keep playing wins, so
+    // this app's own sounds go silent when the phone is muted, same as
+    // any other app's sound effects. No-op on browsers that don't support
+    // this API.
     if ("audioSession" in navigator) {
-      try { navigator.audioSession.type = "playback"; } catch (e) { /* ignore */ }
+      try { navigator.audioSession.type = "ambient"; } catch (e) { /* ignore */ }
     }
     // A context can be permanently "closed" by the browser after a long
     // interruption (a phone call, extended backgrounding, etc.) - resume()
