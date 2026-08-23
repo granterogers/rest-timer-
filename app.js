@@ -261,8 +261,12 @@
   // sufficiently long-backgrounded tab/PWA - but it covers ordinary rest
   // periods reliably.
   function startKeepAlive() {
-    keepAliveAudio.currentTime = 0;
-    keepAliveAudio.play().catch(function () { /* ignore - not fatal */ });
+    // Setting .currentTime before the browser has finished loading the
+    // audio's metadata can throw InvalidStateError on Safari - guard every
+    // step here so a media-API quirk can never take down the rest of the
+    // countdown with it.
+    try { keepAliveAudio.currentTime = 0; } catch (e) { /* not loaded yet - fine, it already starts at 0 */ }
+    try { keepAliveAudio.play().catch(function () { /* ignore - not fatal */ }); } catch (e) { /* ignore */ }
     if ("mediaSession" in navigator) {
       try {
         navigator.mediaSession.metadata = new MediaMetadata({ title: "Resting…", artist: "Rest Timer" });
@@ -272,8 +276,8 @@
   }
 
   function stopKeepAlive() {
-    keepAliveAudio.pause();
-    keepAliveAudio.currentTime = 0;
+    try { keepAliveAudio.pause(); } catch (e) { /* ignore */ }
+    try { keepAliveAudio.currentTime = 0; } catch (e) { /* ignore */ }
     if ("mediaSession" in navigator) {
       try { navigator.mediaSession.playbackState = "none"; } catch (e) { /* ignore */ }
     }
@@ -299,10 +303,14 @@
     endTime = Date.now() + selectedSeconds * 1000;
     restButton.classList.add("is-running");
     stepperRowEl.classList.add("disabled");
-    ensureAudio().then(playChime);
-    startKeepAlive();
+    // The countdown itself must run no matter what happens with sound, so
+    // it's started first; everything audio-related is wrapped so a failure
+    // there (a full AudioContext quota, a media-loading quirk, etc.) can
+    // never take the timer down with it.
     tick();
     tickIntervalId = setInterval(tick, 250);
+    try { ensureAudio().then(playChime); } catch (e) { /* ignore - countdown still runs */ }
+    try { startKeepAlive(); } catch (e) { /* ignore */ }
   }
 
   function resetToIdle() {
@@ -323,7 +331,7 @@
     restButton.classList.remove("is-running");
     stepperRowEl.classList.remove("disabled");
     timeLabel.textContent = formatTime(selectedSeconds);
-    ensureAudio().then(playBoxingBell);
+    try { ensureAudio().then(playBoxingBell); } catch (e) { /* ignore */ }
   }
 
   restButton.addEventListener("click", function () {
