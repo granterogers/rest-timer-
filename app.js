@@ -352,19 +352,22 @@
   // On iOS, opening a home-screen app often resumes a WKWebView that was
   // frozen in the background rather than actually reloading the page, so
   // the network-first service worker above never gets a chance to run.
-  // Whenever the app becomes visible again, compare against a version
-  // marker (rewritten on every deploy) and force a real reload if it
-  // changed - that's the only thing that reliably picks up new code.
-  var appVersion = null;
+  // Whenever the app becomes visible again, compare against a build
+  // marker (the commit SHA, rewritten on every deploy) and force a real
+  // reload if it changed - that's the only thing that reliably picks up
+  // new code. "display" is a separate, human-maintained semantic version
+  // (see the VERSION file) shown subtly in the corner - it only changes
+  // when bumped on purpose, so it's not used for this comparison.
+  var appBuild = null;
 
   function checkForNewVersion() {
     fetch("version.json", { cache: "no-store" })
       .then(function (res) { return res.json(); })
       .then(function (data) {
-        if (appVersion === null) {
-          appVersion = data.version;
-          versionTag.textContent = "v" + String(data.version).slice(0, 7);
-        } else if (data.version !== appVersion) {
+        versionTag.textContent = "v" + data.display;
+        if (appBuild === null) {
+          appBuild = data.build;
+        } else if (data.build !== appBuild) {
           window.location.reload();
         }
       })
