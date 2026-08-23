@@ -29,7 +29,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Write version marker
-        run: echo "{\"version\":\"${{ github.sha }}\"}" > version.json
+        run: |
+          DISPLAY_VERSION=$(cat VERSION)
+          echo "{\"build\":\"${{ github.sha }}\",\"display\":\"$DISPLAY_VERSION\"}" > version.json
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
