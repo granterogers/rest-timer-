@@ -275,6 +275,28 @@
     }
   }
 
+  // Registering real action handlers (even ones that mostly no-op) is what
+  // makes iOS treat this page's audio as a legitimate ongoing media session
+  // eligible for the lock screen, rather than a one-off sound effect -
+  // relevant to whether the countdown/bell can keep running with the
+  // screen fully off, not just backgrounded to another app. Registered
+  // once, not per-rest.
+  if ("mediaSession" in navigator) {
+    ["play", "pause", "stop"].forEach(function (action) {
+      try {
+        navigator.mediaSession.setActionHandler(action, function () {
+          if (action === "play" && isRunning) {
+            try { keepAliveAudio.play().catch(function () { /* ignore */ }); } catch (e) { /* ignore */ }
+          }
+          // Ignore pause/stop from the OS/lock screen while a rest is
+          // running - there's nothing meaningful to pause, and letting
+          // it through would cut the keep-alive audio out from under
+          // an in-progress countdown.
+        });
+      } catch (e) { /* action not supported on this browser */ }
+    });
+  }
+
   function stopKeepAlive() {
     try { keepAliveAudio.pause(); } catch (e) { /* ignore */ }
     try { keepAliveAudio.currentTime = 0; } catch (e) { /* ignore */ }
